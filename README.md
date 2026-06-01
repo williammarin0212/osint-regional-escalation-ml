@@ -2,7 +2,7 @@
 
 ## Introducción
 
-Análisis, modelamiento y visualización de eventos relacionados con el conflicto Irán–Israel–EE.UU. mediante la integración de múltiples fuentes OSINT abiertas. El proyecto utiliza técnicas de Ciencia de Datos, NLP y Machine Learning para detectar y clasificar escenarios de escalada regional, apoyándose en información geográfica, textual y temporal proveniente de diferentes fuentes de inteligencia abierta.
+Análisis, modelamiento y visualización de eventos relacionados con el conflicto Irán–Israel–EE.UU. mediante la integración de múltiples fuentes OSINT abiertas. El proyecto utiliza técnicas de Ciencia de Datos, NLP y Machine Learning para detectar y clasificar escenarios de escalada regional a partir de señales geográficas, temporales y textuales.
 
 ---
 
@@ -19,6 +19,12 @@ William Gómez Marín ([william.gomez3@est.uexternado.edu.co](mailto:william.gom
 ```text
 https://osintregionalescalationdetection.netlify.app/
 ```
+
+---
+
+## Pregunta de Investigación
+
+> ¿Hasta qué punto un conjunto de fuentes abiertas y gratuitas permite detectar, clasificar o modelar episodios de escalada regional en el conflicto Irán–Israel–EE.UU.?
 
 ---
 
@@ -64,12 +70,6 @@ Métricas evaluadas:
 
 ---
 
-## Nota
-
-No es necesario ejecutar los notebooks para utilizar el dashboard, ya que los datos, visualizaciones y resultados de los modelos se encuentran integrados dentro de la aplicación desplegada.
-
----
-
 ## Fuentes de Datos
 
 * ACLED
@@ -83,7 +83,34 @@ No es necesario ejecutar los notebooks para utilizar el dashboard, ya que los da
 
 ---
 
+## Estructura del Repositorio
+
+```text
+Dashboard/
+    Dashboard interactivo del proyecto
+
+EDA (Análisis Exploratorio de Datos)/
+    Visualizaciones, análisis y hallazgos
+
+Fuente de Datos Final/
+    Dataset final utilizado para el proyecto
+
+Modelos Finales/
+    Baseline
+    Naive Bayes
+    Logistic Regression
+    Random Forest
+    Comparación Global
+```
+
+---
+
+## Objetivo del Proyecto
+
+Evaluar el potencial de las fuentes OSINT abiertas para identificar patrones asociados a escenarios de escalada regional y analizar qué tan efectivas resultan para tareas de clasificación supervisada mediante Machine Learning.
+
+---
+
 ## Nota
 
-No es necesario ejecutar los notebooks para utilizar el dashboard, ya que los datos, visualizaciones y resultados de los modelos se encuentran integrados dentro de la aplicación desplegada.
-
+No es necesario ejecutar notebooks o scripts para explorar los resultados principales. El dashboard integra las visualizaciones, métricas, análisis y resultados generados durante el proyecto.
