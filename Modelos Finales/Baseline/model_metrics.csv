@@ -1,0 +1,2 @@
+model,Accuracy,Precision,Recall,F1 Score,ROC-AUC,train_rows,test_rows,target_0,target_1
+Baseline Classifier,0.8108706764355086,0.0,0.0,0.0,0.5,23476,5869,23794,5551

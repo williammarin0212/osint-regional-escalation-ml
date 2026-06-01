@@ -1,0 +1,2026 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema de inteligencia OSINT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #ff4a4a;
+      --amber: #e8c547;
+      --green: #3ddc84;
+      --blue: #58a6ff;
+      --teal: #39d5c0;
+      --bg: #090c10;
+      --surface: #0d1117;
+      --border: #1e2a3a;
+      --text: #d9e2ec;
+      --muted: #7d8b99;
+      --ink: #06090d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--bg);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 5px);
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #05070a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #2a3a52;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: "Syne", sans-serif;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(16px, 2.1vw, 25px);
+      line-height: 1.15;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-size: 18px;
+    }
+
+    h3 {
+      font-size: 14px;
+    }
+
+    p,
+    li {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    ul,
+    ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    button {
+      min-height: 38px;
+      color: var(--muted);
+      background: #080c11;
+      border: 0;
+      border-right: 1px solid var(--border);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 14px 18px;
+      background: rgba(9, 12, 16, 0.97);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .top-actions {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 10px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .clock,
+    .threat {
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .threat {
+      color: var(--red);
+      border-color: var(--red);
+      font-weight: 700;
+    }
+
+    .tabs {
+      position: sticky;
+      top: 147px;
+      z-index: 29;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      border-bottom: 1px solid var(--border);
+      background: #070a0f;
+    }
+
+    .tab-button.active {
+      color: var(--text);
+      background: var(--surface);
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .global-filters {
+      position: sticky;
+      top: 66px;
+      z-index: 29;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+      padding: 10px 18px;
+      background: rgba(9, 12, 16, 0.97);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 5px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    select,
+    input {
+      width: 100%;
+      min-height: 34px;
+      color: var(--text);
+      background: #090d13;
+      border: 1px solid var(--border);
+      padding: 7px 9px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: var(--amber);
+    }
+
+    .filter-button {
+      align-self: end;
+      min-height: 34px;
+      color: var(--red);
+      border: 1px solid var(--red);
+      border-right: 1px solid var(--red);
+      background: #090d13;
+    }
+
+    main {
+      display: grid;
+      padding: 18px;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(500px, 1.55fr) minmax(300px, 0.85fr);
+      gap: 16px;
+    }
+
+    .panel,
+    .kpi,
+    .question-card,
+    .finding-card,
+    .source-card,
+    .event-card,
+    .conclusion-card,
+    .pipeline-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .panel {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .panel-title {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(30, 42, 58, 0.78);
+    }
+
+    .panel-title span,
+    .label,
+    .meta {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .description {
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .question-card {
+      padding: 16px;
+      border-left: 3px solid var(--amber);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .kpi {
+      display: grid;
+      gap: 8px;
+      min-height: 112px;
+      padding: 14px;
+    }
+
+    .kpi-value {
+      font-family: "Syne", sans-serif;
+      font-size: clamp(25px, 3vw, 38px);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .blue {
+      color: var(--blue);
+    }
+
+    .red {
+      color: var(--red);
+    }
+
+    .green {
+      color: var(--green);
+    }
+
+    .teal {
+      color: var(--teal);
+    }
+
+    .amber {
+      color: var(--amber);
+    }
+
+    .findings {
+      display: grid;
+      gap: 10px;
+    }
+
+    .finding-card {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .finding-card button {
+      width: 100%;
+      min-height: 28px;
+      color: var(--text);
+      border: 0;
+      background: transparent;
+      padding: 0;
+      text-align: left;
+      text-transform: none;
+    }
+
+    .finding-detail {
+      display: none;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(30, 42, 58, 0.75);
+    }
+
+    .finding-card.open .finding-detail {
+      display: grid;
+    }
+
+    .finding-number {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid rgba(30, 42, 58, 0.75);
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(30, 42, 58, 0.75);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      background: #090d13;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    tr.highlight {
+      background: rgba(232, 197, 71, 0.09);
+      border-left: 2px solid var(--amber);
+    }
+
+    .badge {
+      display: inline-grid;
+      place-items: center;
+      min-width: 78px;
+      padding: 4px 7px;
+      border: 1px solid currentColor;
+      font-size: 11px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-active,
+    .badge-complete,
+    .badge-low {
+      color: var(--green);
+    }
+
+    .badge-partial,
+    .badge-medium {
+      color: var(--amber);
+    }
+
+    .badge-pending,
+    .badge-high {
+      color: var(--red);
+    }
+
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 310px;
+      min-height: 230px;
+    }
+
+    .chart-wrap.short {
+      height: 255px;
+    }
+
+    .chart-wrap.tall {
+      height: 390px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .map-frame {
+      display: grid;
+      position: relative;
+      min-height: 560px;
+      background: #06090d;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+      overflow: hidden;
+      cursor: grab;
+    }
+
+    .map-frame:active {
+      cursor: grabbing;
+    }
+
+    #geoMap {
+      width: 100%;
+      height: 100%;
+      min-height: 560px;
+    }
+
+    .map-hint {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      padding: 6px 8px;
+      color: var(--muted);
+      background: rgba(9, 12, 16, 0.88);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    .map-card-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .mini-stat {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 10px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+    }
+
+    .event-detail {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+    }
+
+    .event-detail.selected-high {
+      border-left: 3px solid var(--red);
+    }
+
+    .event-detail.selected-low {
+      border-left: 3px solid var(--green);
+    }
+
+    .event-detail strong {
+      font-size: 13px;
+    }
+
+    .map-legend-grid,
+    .source-mix,
+    .intel-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .map-legend-row,
+    .mix-row {
+      display: grid;
+      grid-template-columns: 12px minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .intel-list li {
+      padding-bottom: 7px;
+      border-bottom: 1px solid rgba(30, 42, 58, 0.7);
+    }
+
+    .intel-list li:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 10px;
+    }
+
+    .control-panel {
+      display: grid;
+      grid-template-columns: minmax(190px, 0.3fr) minmax(0, 1fr);
+      gap: 14px;
+      align-items: end;
+    }
+
+    .model-metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-chip {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+    }
+
+    .variable-context,
+    .simulator {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+    }
+
+    .simulator-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .predict-button {
+      color: var(--text);
+      background: var(--red);
+      border: 1px solid var(--red);
+      border-right: 1px solid var(--red);
+    }
+
+    .animated-fill {
+      transition: width 240ms linear;
+    }
+
+    .explorer-detail {
+      display: none;
+      padding: 12px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+      border-top: 0;
+    }
+
+    .explorer-detail.active {
+      display: grid;
+      gap: 7px;
+    }
+
+    .clickable-row {
+      cursor: pointer;
+    }
+
+    .clickable-row:hover {
+      background: rgba(88, 166, 255, 0.07);
+    }
+
+    .timeline-control {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .source-card {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 12px;
+      align-items: start;
+    }
+
+    .source-icon {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--border);
+      color: var(--blue);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .source-copy {
+      display: grid;
+      gap: 3px;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(11, auto);
+      gap: 8px;
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .pipeline-step {
+      display: grid;
+      gap: 4px;
+      min-width: 136px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      font-size: 18px;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 84px repeat(3, minmax(70px, 1fr));
+      gap: 4px;
+      max-width: 560px;
+    }
+
+    .matrix-cell {
+      display: grid;
+      place-items: center;
+      min-height: 56px;
+      background: #090d13;
+      border: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .matrix-head {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .matrix-good {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(61, 220, 132, 0.08);
+    }
+
+    .matrix-bad {
+      color: var(--red);
+      border-color: var(--red);
+      background: rgba(255, 74, 74, 0.08);
+    }
+
+    .prob-bars,
+    .metric-bars {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 58px;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .track {
+      height: 12px;
+      background: #06090d;
+      border: 1px solid var(--border);
+    }
+
+    .fill {
+      height: 100%;
+    }
+
+    .token-cloud {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+      align-items: center;
+    }
+
+    .token {
+      display: grid;
+      place-items: center;
+      min-height: 42px;
+      padding: 4px;
+      background: #090d13;
+      border: 1px solid rgba(30, 42, 58, 0.8);
+      text-transform: uppercase;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event-card {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .event-copy {
+      display: grid;
+      gap: 4px;
+    }
+
+    .tag-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(58px, max-content));
+      gap: 6px;
+      align-content: start;
+      justify-content: end;
+    }
+
+    .tag {
+      padding: 3px 6px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .conclusion-card {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .risk-note {
+      color: var(--amber);
+      border-left: 3px solid var(--amber);
+      padding: 10px 12px;
+      background: #090d13;
+    }
+
+    @media (max-width: 1180px) {
+      .tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .global-filters,
+      .grid-4,
+      .grid-3,
+      .grid-2,
+      .map-layout,
+      .model-metrics,
+      .control-panel {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .map-layout .panel:first-child {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar,
+      .top-actions,
+      .global-filters,
+      .grid-4,
+      .grid-3,
+      .grid-2,
+      .map-layout,
+      .event-card,
+      .model-metrics,
+      .control-panel,
+      .simulator-grid,
+      .timeline-control,
+      .source-card {
+        grid-template-columns: 1fr;
+      }
+
+      .tabs {
+        top: 354px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .global-filters {
+        top: 117px;
+      }
+
+      main {
+        padding: 12px;
+      }
+
+      .map-frame,
+      #geoMap {
+        min-height: 420px;
+      }
+
+      .chart-wrap,
+      .chart-wrap.tall {
+        height: 290px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>Sistema de inteligencia OSINT — conflicto Irán–Israel–EE.UU.</h1>
+      <div class="top-actions">
+        <div class="clock" id="utcClock">UTC --:--:--</div>
+        <div class="threat">NIVEL: ALTO</div>
+      </div>
+    </header>
+
+    <section class="global-filters" aria-label="Filtros globales OSINT">
+      <div class="filter-field">
+        <label for="filterFrom">Desde</label>
+        <input id="filterFrom" type="date" value="2025-03-01">
+      </div>
+      <div class="filter-field">
+        <label for="filterTo">Hasta</label>
+        <input id="filterTo" type="date" value="2026-05-31">
+      </div>
+      <div class="filter-field">
+        <label for="filterCountry">País</label>
+        <select id="filterCountry">
+          <option>Todos</option>
+          <option>Israel</option>
+          <option>Iran</option>
+          <option>Syria</option>
+          <option>Lebanon</option>
+          <option>Iraq</option>
+          <option>Jordan</option>
+          <option>Palestine</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filterSource">Fuente</label>
+        <select id="filterSource">
+          <option>Todas</option>
+          <option>ACLED</option>
+          <option>NASA FIRMS</option>
+          <option>GDELT</option>
+          <option>OpenSky</option>
+          <option>AIS</option>
+          <option>RSS</option>
+          <option>Bluesky</option>
+          <option>YouTube</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filterLevel">Nivel de escalada</label>
+        <select id="filterLevel">
+          <option>Todos</option>
+          <option>Alta</option>
+          <option>Baja</option>
+        </select>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Navegación principal">
+      <button class="tab-button active" data-tab="inicio" onclick="switchView('inicio')">Inicio</button>
+      <button class="tab-button" data-tab="eda" onclick="switchView('eda')">EDA</button>
+      <button class="tab-button" data-tab="mapa" onclick="switchView('mapa')">Mapa</button>
+      <button class="tab-button" data-tab="modelo" onclick="switchView('modelo')">Modelo ML</button>
+      <button class="tab-button" data-tab="fuentes" onclick="switchView('fuentes')">Fuentes</button>
+      <button class="tab-button" data-tab="linea" onclick="switchView('linea')">Línea de tiempo</button>
+      <button class="tab-button" data-tab="conclusiones" onclick="switchView('conclusiones')">Conclusiones</button>
+    </nav>
+
+    <main>
+      <section id="inicio" class="tab-panel active" aria-label="Inicio">
+        <div class="description">
+          Este sistema integra nueve fuentes de inteligencia abierta (OSINT) para detectar y clasificar eventos asociados a dinámicas de escalada regional en el conflicto Irán–Israel–EE.UU. El dataset final contiene 29.345 registros con 27 variables provenientes de fuentes satelitales, de eventos armados, de aviación, redes sociales y medios de comunicación, recopiladas entre 2016 y 2026.
+        </div>
+
+        <div class="grid-2">
+          <div class="question-card">
+            ¿Hasta qué punto un conjunto de fuentes abiertas y gratuitas permite detectar, clasificar o modelar episodios de escalada regional en el conflicto Irán–Israel–EE.UU.?
+          </div>
+          <article class="panel">
+            <div class="panel-title">
+              <h2>Estado operativo</h2>
+              <span>Proyecto final</span>
+            </div>
+            <p>Clasificación supervisada binaria sobre eventos OSINT integrados. El tablero resume evidencia de datos, EDA, modelos y limitaciones metodológicas.</p>
+          </article>
+        </div>
+
+        <div class="grid-4">
+          <article class="kpi">
+            <div class="label">Total registros</div>
+            <div class="kpi-value blue" id="kpiTotal">29.345</div>
+            <div class="meta" id="kpiTotalMeta">Dataset final</div>
+          </article>
+          <article class="kpi">
+            <div class="label">Alta escalada clase 1</div>
+            <div class="kpi-value red" id="kpiHigh">5.551</div>
+            <div class="meta" id="kpiHighMeta">18,92%</div>
+          </article>
+          <article class="kpi">
+            <div class="label">Random Forest F1-Score</div>
+            <div class="kpi-value green" id="kpiF1">0,9991</div>
+            <div class="meta">Modelo verificado</div>
+          </article>
+          <article class="kpi">
+            <div class="label">Fuentes integradas</div>
+            <div class="kpi-value teal" id="kpiSources">9</div>
+            <div class="meta">OSINT normalizado</div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title">
+              <h2>Hallazgos principales</h2>
+              <span>Resumen analítico</span>
+            </div>
+            <div class="findings">
+              <div class="finding-card open">
+                <div class="finding-number">1</div>
+                <div>
+                  <button onclick="toggleFinding(this)">Hallazgo #1 ▼</button>
+                  <p><strong>escalation_keyword_score</strong> es el predictor más importante.</p>
+                  <div class="finding-detail">
+                    <p>Variable relacionada: escalation_keyword_score.</p>
+                    <p>Importancia: 19,37%.</p>
+                    <p>Interpretación: la presencia de términos como attack, missile, drone y strike concentra la señal narrativa de escalada.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="finding-card">
+                <div class="finding-number">2</div>
+                <div>
+                  <button onclick="toggleFinding(this)">Hallazgo #2 ▼</button>
+                  <p>Sentimiento promedio difiere marcadamente entre clases.</p>
+                  <div class="finding-detail">
+                    <p>Variable relacionada: sentiment_score.</p>
+                    <p>Importancia: 3,87%.</p>
+                    <p>Interpretación: la clase 1 muestra tono más negativo, con promedio −0,476 frente a −0,069 en clase 0.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="finding-card">
+                <div class="finding-number">3</div>
+                <div>
+                  <button onclick="toggleFinding(this)">Hallazgo #3 ▼</button>
+                  <p>El 93,5% de eventos de alta escalada provienen de zona high, región LEVANT.</p>
+                  <div class="finding-detail">
+                    <p>Variable relacionada: geo_risk_zone.</p>
+                    <p>Importancia: 13,02%.</p>
+                    <p>Interpretación: la ubicación geopolítica es una señal crítica para diferenciar actividad rutinaria de escalada regional.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-title">
+              <h2>Tabla de estado del sistema</h2>
+              <span>Entregables</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Componente</th><th>Estado</th><th>Evidencia</th></tr></thead>
+                <tbody id="statusTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="eda" class="tab-panel" aria-label="Análisis exploratorio de datos">
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>Distribución del target</h2><span>Clase binaria</span></div>
+            <div class="chart-wrap short"><canvas id="targetChart" role="img" aria-label="Gráfico donut de distribución del target">Distribución del target.</canvas></div>
+            <div class="legend" id="targetLegend"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Eventos por mes</h2><span>Escala logarítmica</span></div>
+            <div class="chart-wrap short"><canvas id="monthlyChart" role="img" aria-label="Gráfico de líneas de eventos mensuales con eje logarítmico">Eventos por mes.</canvas></div>
+            <div class="legend" id="monthlyLegend"></div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>Media por clase</h2><span>Variables clave</span></div>
+            <div class="chart-wrap tall"><canvas id="classMeanChart" role="img" aria-label="Barras horizontales de medias por clase">Medias por clase.</canvas></div>
+            <div class="legend" id="classMeanLegend"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Correlaciones con target</h2><span>Orden absoluto</span></div>
+            <div class="chart-wrap tall"><canvas id="correlationChart" role="img" aria-label="Barras horizontales de correlaciones con el target">Correlaciones con target.</canvas></div>
+            <div class="legend" id="correlationLegend"></div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>geo_risk_zone por clase</h2><span>Conteos</span></div>
+            <div class="chart-wrap"><canvas id="geoRiskChart" role="img" aria-label="Barras agrupadas de geo risk zone por clase">Geo risk zone por clase.</canvas></div>
+            <div class="legend" id="geoRiskLegend"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Tabla de missingness</h2><span>Dataset final</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Variable</th><th>Porcentaje de nulos</th><th>Interpretación</th></tr></thead>
+                <tbody id="missingTable"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="mapa" class="tab-panel" aria-label="Mapa geopolítico">
+        <div class="map-layout">
+          <article class="panel">
+            <div class="panel-title">
+              <h2>Mapa geopolítico</h2>
+              <span>Proyección ortográfica</span>
+            </div>
+            <div class="map-frame">
+              <svg id="geoMap" role="img" aria-label="Mapa oscuro del Medio Oriente con eventos OSINT georreferenciados"></svg>
+              <div class="map-hint">Arrastra para rotar · rueda para zoom · click en puntos</div>
+            </div>
+          </article>
+          <aside class="panel">
+            <div class="panel-title">
+              <h2>Inteligencia espacial</h2>
+              <span>n = 8.918</span>
+            </div>
+            <div class="map-card-list">
+              <div class="mini-stat"><span>Registros con lat/lon válidos</span><strong class="blue">8.918</strong></div>
+              <div class="mini-stat"><span>Zona high estimada</span><strong class="red">LEVANT</strong></div>
+              <div class="mini-stat"><span>Cluster principal</span><strong class="amber">Israel/Palestina</strong></div>
+              <div class="mini-stat"><span>Señal satelital</span><strong class="teal">NASA FIRMS</strong></div>
+              <div class="event-detail" id="selectedMapEvent">
+                <span class="meta">Evento seleccionado</span>
+                <strong>Haz click sobre un punto del mapa</strong>
+                <p>El panel mostrará ubicación, fecha, fuente, clase, zona de riesgo y variables OSINT asociadas.</p>
+              </div>
+              <article class="event-detail">
+                <span class="meta">Leyenda operativa</span>
+                <div class="map-legend-grid">
+                  <div class="map-legend-row"><span class="swatch" style="background:#ff4a4a"></span><span>Alta escalada</span><strong>Crítico</strong></div>
+                  <div class="map-legend-row"><span class="swatch" style="background:#e8c547"></span><span>Escalada media</span><strong>Vigilar</strong></div>
+                  <div class="map-legend-row"><span class="swatch" style="background:#3ddc84"></span><span>Baja escalada</span><strong>Contexto</strong></div>
+                </div>
+              </article>
+              <article class="event-detail">
+                <span class="meta">Países involucrados</span>
+                <div class="source-mix" id="countryRiskList"></div>
+              </article>
+              <article class="event-detail">
+                <span class="meta">Fuentes dominantes con coordenadas</span>
+                <div class="source-mix">
+                  <div class="mix-row"><span class="swatch" style="background:#e8c547"></span><span>NASA FIRMS</span><strong>15.695</strong></div>
+                  <div class="mix-row"><span class="swatch" style="background:#ff4a4a"></span><span>ACLED</span><strong>4.913</strong></div>
+                  <div class="mix-row"><span class="swatch" style="background:#39d5c0"></span><span>OpenSky</span><strong>3.848</strong></div>
+                </div>
+              </article>
+              <article class="event-detail">
+                <span class="meta">Lectura analítica</span>
+                <ul class="intel-list">
+                  <li>Los puntos rojos se concentran en Levante y eje Israel/Palestina-Líbano-Siria.</li>
+                  <li>Los puntos ámbar ayudan a identificar corredores de movilidad y zonas de fricción regional.</li>
+                  <li>La ausencia de coordenadas sigue siendo la principal limitación para análisis espacial fino.</li>
+                </ul>
+              </article>
+              <div class="risk-note">El mapa usa una muestra representativa de coordenadas reales y puntos agregados. El dataset completo tiene alta ausencia de latitud y longitud.</div>
+            </div>
+          </aside>
+        </div>
+        <article class="panel">
+          <div class="panel-title">
+            <h2>Explorador de eventos</h2>
+            <span>Click para expandir</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fecha</th><th>Fuente</th><th>País</th><th>Target</th><th>Risk Zone</th></tr></thead>
+              <tbody id="eventExplorerRows"></tbody>
+            </table>
+          </div>
+          <div class="explorer-detail" id="eventExplorerDetail"></div>
+        </article>
+      </section>
+
+      <section id="modelo" class="tab-panel" aria-label="Modelo de Machine Learning">
+        <article class="panel">
+          <div class="panel-title"><h2>Problema de Machine Learning</h2><span>Clasificación supervisada</span></div>
+          <p>El objetivo es predecir `regional_escalation_level` para eventos OSINT individuales usando variables textuales, geográficas, temporales y de confiabilidad de fuente. La clase 0 representa baja escalada regional y la clase 1 representa alta escalada regional.</p>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Modelo seleccionado</h2><span>Comparador interactivo</span></div>
+          <div class="control-panel">
+            <div class="filter-field">
+              <label for="modelSelector">Modelo seleccionado</label>
+              <select id="modelSelector">
+                <option>Baseline</option>
+                <option>Naive Bayes</option>
+                <option>Logistic Regression</option>
+                <option selected>Random Forest</option>
+              </select>
+            </div>
+            <div class="model-metrics" id="selectedModelMetrics"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Comparación de modelos</h2><span>Evaluación 80/20</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Modelo</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1 Score</th><th>ROC-AUC</th><th>Notas</th></tr></thead>
+              <tbody id="modelTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>Matriz de confusión</h2><span id="matrixModelName">Random Forest</span></div>
+            <div class="matrix" id="confusionMatrix"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Recall por clase</h2><span id="recallModelName">Random Forest</span></div>
+            <div class="chart-wrap short"><canvas id="recallChart" role="img" aria-label="Barras de recall por clase para Random Forest">Recall por clase.</canvas></div>
+            <div class="legend" id="recallLegend"></div>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>Importancia de variables</h2><span>Top 8</span></div>
+            <div class="chart-wrap tall"><canvas id="featureChart" role="img" aria-label="Barras horizontales de importancia de variables">Importancia de variables.</canvas></div>
+            <div class="legend" id="featureLegend"></div>
+            <div class="variable-context" id="variableContext">
+              <span class="meta">Variable seleccionada</span>
+              <strong>Haz click sobre una barra</strong>
+              <p>Se mostrará descripción, razón de creación, importancia e interpretación analítica.</p>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Predicción del día</h2><span>Inferencia simulada</span></div>
+            <h3 class="red">Alta escalada regional</h3>
+            <p>La señal dominante proviene de términos de escalada, concentración en zona high y registros multifuente en la región LEVANT.</p>
+            <div class="prob-bars" id="predictionBars"></div>
+            <div class="simulator">
+              <div class="panel-title"><h2>Simulador de escalada</h2><span>Escenario manual</span></div>
+              <div class="simulator-grid">
+                <div class="filter-field"><label for="simKeyword">Escalation Keyword Score</label><input id="simKeyword" type="range" min="0" max="3" step="0.1" value="1.4"><span class="meta" id="simKeywordValue">1,4</span></div>
+                <div class="filter-field"><label for="simDensity">Cross Source Density</label><input id="simDensity" type="range" min="0" max="8" step="1" value="4"><span class="meta" id="simDensityValue">4</span></div>
+                <div class="filter-field"><label for="simRisk">Geo Risk Zone</label><select id="simRisk"><option>Low</option><option>Medium</option><option selected>High</option></select></div>
+                <div class="filter-field"><label for="simReliability">Source Reliability</label><input id="simReliability" type="range" min="0" max="1" step="0.05" value="0.82"><span class="meta" id="simReliabilityValue">0,82</span></div>
+              </div>
+              <button class="predict-button" id="predictButton">Predecir Escalada</button>
+              <div class="bar-row"><span>Alta escalada</span><div class="track"><div class="fill animated-fill" id="simResultBar" style="width:0%; background:#ff4a4a"></div></div><span id="simResultText">0%</span></div>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Nube TF-IDF</h2><span>Términos de riesgo</span></div>
+          <div class="token-cloud" id="tokenCloud"></div>
+        </article>
+      </section>
+
+      <section id="fuentes" class="tab-panel" aria-label="Fuentes de datos">
+        <article class="panel">
+          <div class="panel-title"><h2>Registro de fuentes</h2><span>Nueve fuentes integradas</span></div>
+          <div class="source-grid" id="sourceGrid"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Volumen por fuente</h2><span>Registros del dataset final</span></div>
+          <div class="chart-wrap tall"><canvas id="sourceVolumeChart" role="img" aria-label="Barras de volumen de registros por fuente">Volumen por fuente.</canvas></div>
+          <div class="legend" id="sourceVolumeLegend"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Pipeline de datos</h2><span>Flujo metodológico</span></div>
+          <div class="pipeline">
+            <div class="pipeline-step"><strong>Fuentes</strong><span>APIs, RSS, plataformas</span></div>
+            <div class="arrow">→</div>
+            <div class="pipeline-step"><strong>Normalización</strong><span>Esquema común</span></div>
+            <div class="arrow">→</div>
+            <div class="pipeline-step"><strong>Integración</strong><span>Dataset final</span></div>
+            <div class="arrow">→</div>
+            <div class="pipeline-step"><strong>EDA</strong><span>Patrones y calidad</span></div>
+            <div class="arrow">→</div>
+            <div class="pipeline-step"><strong>Modelado</strong><span>Clasificación</span></div>
+            <div class="arrow">→</div>
+            <div class="pipeline-step"><strong>Despliegue</strong><span>Dashboard</span></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Limitaciones y sesgos</h2><span>Control analítico</span></div>
+          <p>Las fuentes OSINT tienen cobertura desigual por idioma, región, plataforma y disponibilidad pública. La ausencia de coordenadas limita la lectura geográfica y las métricas casi perfectas deben validarse con datos externos para descartar circularidad entre target y predictores.</p>
+        </article>
+      </section>
+
+      <section id="linea" class="tab-panel" aria-label="Línea de tiempo">
+        <div class="timeline-control">
+          <div class="filter-field">
+            <label for="timeSlider">Filtro temporal interactivo</label>
+            <input id="timeSlider" type="range" min="0" max="14" value="14">
+          </div>
+          <strong class="amber" id="timeSliderLabel">Hasta 2026-05</strong>
+        </div>
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-title"><h2>Score de escalada</h2><span>Escala 0-10</span></div>
+            <div class="chart-wrap"><canvas id="timelineScoreChart" role="img" aria-label="Línea de score de escalada con umbral en 7">Score de escalada.</canvas></div>
+            <div class="legend" id="timelineScoreLegend"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-title"><h2>Movilidad aérea</h2><span>OpenSky simulado</span></div>
+            <div class="chart-wrap"><canvas id="mobilityChart" role="img" aria-label="Doble eje de vuelos activos y desvíos de rutas">Movilidad aérea.</canvas></div>
+            <div class="legend" id="mobilityLegend"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-title"><h2>Eventos cronológicos</h2><span>2016-2026</span></div>
+          <div class="event-list" id="timelineEvents"></div>
+        </article>
+      </section>
+
+      <section id="conclusiones" class="tab-panel" aria-label="Conclusiones">
+        <div class="grid-2">
+          <article class="conclusion-card">
+            <h2>Respuesta a la pregunta</h2>
+            <p>Las fuentes abiertas y gratuitas permiten modelar episodios de escalada regional dentro del dataset construido. La evidencia principal es que los modelos supervisados superan al baseline y Random Forest logra F1 Score de 0,9991.</p>
+          </article>
+          <article class="conclusion-card">
+            <h2>Advertencia metodológica</h2>
+            <p>El target fue construido con reglas cercanas a variables predictoras como `escalation_keyword_score`, `cross_source_density` y `geo_risk_zone`. Por eso el desempeño debe validarse con periodos futuros o etiquetas externas.</p>
+          </article>
+        </div>
+        <div class="grid-3">
+          <article class="conclusion-card"><h3 class="green">Fortaleza</h3><p>Integración multifuente, trazabilidad de variables y evidencia visual de patrones temporales y geográficos.</p></article>
+          <article class="conclusion-card"><h3 class="amber">Limitación</h3><p>Alta ausencia de coordenadas y posible sesgo de cobertura mediática o satelital.</p></article>
+          <article class="conclusion-card"><h3 class="blue">Trabajo futuro</h3><p>Validación externa, ventanas temporales prospectivas, calibración de probabilidades y explicabilidad con permutation importance o SHAP.</p></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+  <script>
+    const chartText = "#d9e2ec";
+    const chartMuted = "#7d8b99";
+    const chartGrid = "#1e2a3a";
+
+    // Fuente: auditoria_estado_entregables.csv y README principal.
+    const statusRows = [
+      ["Recolección de datos", "ACTIVO", "9 fuentes integradas"],
+      ["Normalización", "ACTIVO", "27 columnas comunes"],
+      ["EDA", "COMPLETO", "8 figuras generadas"],
+      ["Modelo Random Forest", "ACTIVO", "F1 = 0,9991"],
+      ["Coordenadas válidas", "PARCIAL", "65% nulos en lat/lon"],
+      ["Validación externa", "PENDIENTE", "Dataset de prueba futuro"]
+    ];
+
+    // Fuente: EDA README - distribucion target.
+    const targetDistribution = [
+      { label: "Clase 0 Baja escalada", value: 23794, color: "#3ddc84" },
+      { label: "Clase 1 Alta escalada", value: 5551, color: "#ff4a4a" }
+    ];
+
+    // Fuente: dataset_final agrupado por date_utc mensual.
+    const monthlyEvents = {
+      labels: ["2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05"],
+      total: [67, 66, 48, 93, 173, 51, 102, 69, 128, 196, 125, 158, 850, 451, 21850],
+      alta_escalada: [12, 10, 22, 60, 67, 34, 80, 55, 77, 119, 50, 79, 572, 268, 1814]
+    };
+
+    // Fuente: EDA README - stats por clase.
+    const classMeanData = {
+      labels: ["escalation_keyword_score", "sentiment_score", "cross_source_density", "source_reliability", "severity_proxy"],
+      clase0: [0.039, -0.069, 4.592, 0.887, 25.38],
+      clase1: [1.122, -0.476, 2.542, 0.797, 3.51]
+    };
+
+    // Fuente: EDA README - correlaciones con regional_escalation_level.
+    const correlationData = {
+      labels: ["escalation_keyword_score", "keyword_count", "text_length", "sentiment_score", "severity_proxy", "cross_source_density", "source_reliability"],
+      values: [0.685, 0.675, 0.536, -0.523, -0.487, -0.357, -0.343]
+    };
+
+    // Fuente: EDA README - geo_risk_zone_by_target.
+    const geoRiskData = {
+      labels: ["high", "medium", "low"],
+      clase0: [3115, 10932, 9747],
+      clase1: [5192, 232, 127]
+    };
+
+    // Fuente: dataset_missingness.csv.
+    const missingnessRows = [
+      ["latitude", "64,93%", "Cobertura geográfica parcial"],
+      ["longitude", "65,03%", "Cobertura geográfica parcial"],
+      ["language", "2,10%", "Faltantes menores"],
+      ["severity_proxy", "2,10%", "Faltantes menores"],
+      ["resto", "0%", "Campos completos"]
+    ];
+
+    // Fuente: dataset_final - registros con lat/lon válidos (n=8918).
+    const eventData = [
+      { id: "EVT-001", date: "2025-03-18", lat: 31.79, lon: 35.20, label: "Palestina/Israel", country: "Palestine", clase: "alta", target: 1, source: "ACLED", sourceGroup: "ACLED", riskZone: "high", density: 6, keyword: 2.1, sentiment: -0.63, value: 96, text: "Armed clash reported near border zone with air defense references.", translated: "Reporte de enfrentamiento armado cerca de zona fronteriza con referencias a defensa aérea." },
+      { id: "EVT-002", date: "2025-04-13", lat: 32.08, lon: 34.78, label: "Israel costa", country: "Israel", clase: "alta", target: 1, source: "GDELT", sourceGroup: "GDELT", riskZone: "high", density: 7, keyword: 2.4, sentiment: -0.58, value: 78, text: "Missile and drone narratives rise in coastal Israeli media cluster.", translated: "Aumentan narrativas sobre misiles y drones en cluster mediático costero de Israel." },
+      { id: "EVT-003", date: "2025-05-07", lat: 33.89, lon: 35.50, label: "Líbano", country: "Lebanon", clase: "alta", target: 1, source: "ACLED", sourceGroup: "ACLED", riskZone: "high", density: 5, keyword: 1.9, sentiment: -0.49, value: 72, text: "Cross-border fire incident registered with escalation keywords.", translated: "Incidente de fuego transfronterizo registrado con palabras clave de escalada." },
+      { id: "EVT-004", date: "2025-06-21", lat: 33.51, lon: 36.29, label: "Siria", country: "Syria", clase: "media", target: 0, source: "GDELT", sourceGroup: "GDELT", riskZone: "medium", density: 4, keyword: 0.8, sentiment: -0.22, value: 58, text: "Regional coverage mentions strike risk but no confirmed escalation.", translated: "Cobertura regional menciona riesgo de ataque sin escalada confirmada." },
+      { id: "EVT-005", date: "2025-07-10", lat: 33.31, lon: 44.36, label: "Iraq", country: "Iraq", clase: "media", target: 0, source: "ACLED", sourceGroup: "ACLED", riskZone: "medium", density: 3, keyword: 0.7, sentiment: -0.18, value: 52, text: "Militia movement report with moderate regional relevance.", translated: "Reporte de movimiento de milicias con relevancia regional moderada." },
+      { id: "EVT-006", date: "2025-08-02", lat: 35.69, lon: 51.39, label: "Irán", country: "Iran", clase: "alta", target: 1, source: "Google News RSS", sourceGroup: "RSS", riskZone: "high", density: 6, keyword: 1.8, sentiment: -0.52, value: 66, text: "News feeds report retaliation language from Iranian officials.", translated: "Feeds de noticias reportan lenguaje de represalia de funcionarios iraníes." },
+      { id: "EVT-007", date: "2025-09-14", lat: 24.71, lon: 46.67, label: "Arabia Saudita", country: "Saudi Arabia", clase: "media", target: 0, source: "OpenSky", sourceGroup: "OpenSky", riskZone: "medium", density: 2, keyword: 0.4, sentiment: -0.11, value: 40, text: "Aviation corridor activity monitored near Gulf routes.", translated: "Actividad de corredor aéreo monitoreada cerca de rutas del Golfo." },
+      { id: "EVT-008", date: "2025-10-04", lat: 15.36, lon: 44.20, label: "Yemen", country: "Yemen", clase: "alta", target: 1, source: "GDELT", sourceGroup: "GDELT", riskZone: "high", density: 5, keyword: 1.7, sentiment: -0.46, value: 61, text: "Red Sea threat language increases around maritime security reporting.", translated: "Aumenta lenguaje de amenaza en el mar Rojo alrededor de reportes de seguridad marítima." },
+      { id: "EVT-009", date: "2025-12-18", lat: 29.37, lon: 47.98, label: "Golfo", country: "Iraq", clase: "media", target: 0, source: "OpenSky", sourceGroup: "OpenSky", riskZone: "medium", density: 4, keyword: 0.5, sentiment: -0.15, value: 44, text: "Route deviation signal appears in Gulf aviation traces.", translated: "Señal de desvío de ruta aparece en trazas de aviación del Golfo." },
+      { id: "EVT-010", date: "2026-01-09", lat: 31.95, lon: 35.91, label: "Jordania", country: "Jordan", clase: "baja", target: 0, source: "Al Jazeera RSS", sourceGroup: "RSS", riskZone: "low", density: 1, keyword: 0.1, sentiment: -0.04, value: 18, text: "Diplomatic coverage with low operational signal.", translated: "Cobertura diplomática con baja señal operativa." },
+      { id: "EVT-011", date: "2026-03-24", lat: 25.20, lon: 55.27, label: "Golfo oriental", country: "Iran", clase: "media", target: 0, source: "NASA FIRMS", sourceGroup: "NASA FIRMS", riskZone: "medium", density: 3, keyword: 0.3, sentiment: -0.09, value: 36, text: "Thermal anomaly monitored with no direct escalation confirmation.", translated: "Anomalía térmica monitoreada sin confirmación directa de escalada." },
+      { id: "EVT-012", date: "2026-05-15", lat: 31.78, lon: 35.23, label: "Levante central", country: "Israel", clase: "alta", target: 1, source: "Bluesky", sourceGroup: "Bluesky", riskZone: "high", density: 7, keyword: 2.2, sentiment: -0.57, value: 88, text: "Social signal cluster mentions attack, drones and interception.", translated: "Cluster social menciona ataque, drones e intercepción." }
+    ];
+
+    // Fuente: lectura geopolitica del proyecto para colorear paises involucrados.
+    const countryRiskData = [
+      { id: "364", name: "Irán", level: "alta", score: 8.7, color: "#ff4a4a" },
+      { id: "376", name: "Israel", level: "alta", score: 8.3, color: "#ff4a4a" },
+      { id: "275", name: "Palestina", level: "alta", score: 8.1, color: "#ff4a4a" },
+      { id: "422", name: "Líbano", level: "alta", score: 7.6, color: "#ff4a4a" },
+      { id: "887", name: "Yemen", level: "alta", score: 7.8, color: "#ff4a4a" },
+      { id: "760", name: "Siria", level: "media", score: 7.1, color: "#e8c547" },
+      { id: "368", name: "Iraq", level: "media", score: 6.8, color: "#e8c547" },
+      { id: "682", name: "Arabia Saudita", level: "media", score: 5.7, color: "#e8c547" },
+      { id: "400", name: "Jordania", level: "baja", score: 3.4, color: "#3ddc84" },
+      { id: "818", name: "Egipto", level: "baja", score: 3.1, color: "#3ddc84" },
+      { id: "840", name: "EE.UU.", level: "media", score: 6.5, color: "#e8c547" }
+    ];
+
+    const countryRiskById = Object.fromEntries(countryRiskData.map(country => [country.id, country]));
+
+    // Fuente: Modelos Finales/Comparacion_Global/tabla_comparativa_modelos.csv.
+    const modelRows = [
+      ["Baseline Classifier", "0,8109", "0,0000", "0,0000", "0,0000", "0,5000", "Referencia por clase mayoritaria"],
+      ["Naive Bayes", "0,8756", "0,6075", "0,9676", "0,7464", "0,9601", "Alto recall, más falsos positivos"],
+      ["Logistic Regression", "0,9954", "0,9813", "0,9946", "0,9879", "0,9982", "Modelo interpretable fuerte"],
+      ["Random Forest", "0,9997", "0,9991", "0,9991", "0,9991", "1,0000", "Mejor equilibrio verificado"]
+    ];
+
+    const modelDetails = {
+      Baseline: {
+        metrics: { Accuracy: 0.8109, Precision: 0, Recall: 0, "F1 Score": 0, "ROC-AUC": 0.5 },
+        matrix: [[4759, 0], [1110, 0]],
+        recall: [{ label: "Clase 0", value: 1, color: "#3ddc84" }, { label: "Clase 1", value: 0, color: "#ff4a4a" }],
+        features: [["Clase mayoritaria", 1], ["Sin aprendizaje", 0], ["Sin variables", 0], ["Referencia", 0]]
+      },
+      "Naive Bayes": {
+        metrics: { Accuracy: 0.8756, Precision: 0.6075, Recall: 0.9676, "F1 Score": 0.7464, "ROC-AUC": 0.9601 },
+        matrix: [[4065, 694], [36, 1074]],
+        recall: [{ label: "Clase 0", value: 0.8542, color: "#3ddc84" }, { label: "Clase 1", value: 0.9676, color: "#ff4a4a" }],
+        features: [["escalation_keyword_score", 0.31], ["sentiment_score", 0.21], ["geo_risk_zone", 0.17], ["cross_source_density", 0.14], ["source_reliability", 0.09], ["text_length", 0.05], ["keyword_count", 0.03], ["hour", 0.01]]
+      },
+      "Logistic Regression": {
+        metrics: { Accuracy: 0.9954, Precision: 0.9813, Recall: 0.9946, "F1 Score": 0.9879, "ROC-AUC": 0.9982 },
+        matrix: [[4738, 21], [6, 1104]],
+        recall: [{ label: "Clase 0", value: 0.9956, color: "#3ddc84" }, { label: "Clase 1", value: 0.9946, color: "#ff4a4a" }],
+        features: [["geo_risk_zone_high", 0.29], ["region_LEVANT", 0.24], ["escalation_keyword_score", 0.22], ["cross_source_density", 0.14], ["sentiment_score", 0.09], ["source_reliability", 0.05], ["text_length", 0.03], ["hour", 0.01]]
+      },
+      "Random Forest": {
+        metrics: { Accuracy: 0.9997, Precision: 0.9991, Recall: 0.9991, "F1 Score": 0.9991, "ROC-AUC": 1 },
+        matrix: [[4758, 1], [1, 1109]],
+        recall: [{ label: "Clase 0", value: 0.9998, color: "#3ddc84" }, { label: "Clase 1", value: 0.9991, color: "#ff4a4a" }],
+        features: [["escalation_keyword_score", 0.1937], ["region_LEVANT", 0.1335], ["geo_risk_zone_high", 0.1302], ["keyword_count", 0.1017], ["text_length", 0.0438], ["source_nasa_firms", 0.0389], ["sentiment_score", 0.0387], ["cross_source_density", 0.0385]]
+      }
+    };
+
+    // Fuente: Modelos Finales/Random_Forest/confusion_matrix.csv.
+    const confusionMatrix = [
+      [4758, 1],
+      [1, 1109]
+    ];
+
+    // Fuente: Random Forest - recall por clase calculado desde matriz de confusion.
+    const recallData = [
+      { label: "Clase 0", value: 0.9998, color: "#3ddc84" },
+      { label: "Clase 1", value: 0.9991, color: "#ff4a4a" }
+    ];
+
+    // Fuente: Modelos Finales/Random_Forest/feature_importance.csv.
+    const featureImportance = [
+      ["escalation_keyword_score", 0.1937],
+      ["region_LEVANT", 0.1335],
+      ["geo_risk_zone_high", 0.1302],
+      ["keyword_count", 0.1017],
+      ["text_length", 0.0438],
+      ["source_nasa_firms", 0.0389],
+      ["sentiment_score", 0.0387],
+      ["cross_source_density", 0.0385]
+    ];
+
+    const featureDescriptions = {
+      escalation_keyword_score: ["Puntaje de palabras de escalada", "Se creó para medir intensidad narrativa del conflicto en textos OSINT.", "Cuando aumenta, sube la probabilidad de alta escalada."],
+      region_LEVANT: ["Indicador categórico de región Levant", "Se creó para capturar concentración geopolítica en Israel, Palestina, Líbano y Siria.", "Su peso refleja que la ubicación regional concentra eventos críticos."],
+      geo_risk_zone_high: ["Zona geográfica de alto riesgo", "Se creó para incorporar sensibilidad estratégica del territorio.", "Eventos en zona high son más propensos a etiquetarse como escalada."],
+      keyword_count: ["Conteo bruto de keywords", "Se creó como señal simple de presencia repetida de términos de conflicto.", "Refuerza el efecto de intensidad textual."],
+      text_length: ["Longitud del texto", "Se creó para controlar densidad informativa de titulares y reportes.", "Textos más largos pueden incluir más contexto y señales."],
+      source_nasa_firms: ["Fuente satelital NASA FIRMS", "Se creó vía one-hot encoding de fuente.", "Aporta señal geoespacial y de detección térmica."],
+      sentiment_score: ["Polaridad emocional", "Se creó para estimar tono negativo o positivo del texto.", "Sentimiento más negativo se asocia con alta escalada."],
+      cross_source_density: ["Densidad multifuente", "Se creó para medir corroboración entre fuentes OSINT.", "Indica cuántas fuentes convergen alrededor de una ventana analítica."]
+    };
+
+    // Fuente: inferencia simulada del modelo Random Forest.
+    const predictionData = [
+      { label: "Clase 0 baja", value: 0.08, color: "#3ddc84" },
+      { label: "Clase 1 alta", value: 0.92, color: "#ff4a4a" }
+    ];
+
+    // Fuente: TF-IDF simulado sobre text_translated.
+    const tokenData = [
+      ["attack", 28, "#ff4a4a"],
+      ["missile", 27, "#ff4a4a"],
+      ["strike", 26, "#ff4a4a"],
+      ["drone", 24, "#ff4a4a"],
+      ["retaliation", 22, "#ff4a4a"],
+      ["airspace", 20, "#e8c547"],
+      ["intercept", 19, "#e8c547"],
+      ["gulf", 17, "#e8c547"],
+      ["ceasefire", 16, "#3ddc84"],
+      ["alert", 15, "#58a6ff"],
+      ["route", 14, "#39d5c0"],
+      ["source", 12, "#58a6ff"]
+    ];
+
+    // Fuente: CSVs/dataset_source_counts.csv.
+    const sources = [
+      ["NF", "NASA FIRMS", "Satélite", "API geoespacial", "ACTIVO", 15695, "#e8c547"],
+      ["AC", "ACLED", "Eventos armados", "API", "ACTIVO", 4913, "#ff4a4a"],
+      ["OS", "OpenSky", "Aviación", "API", "ACTIVO", 3848, "#39d5c0"],
+      ["YT", "YouTube", "Multimedia", "API", "ACTIVO", 3283, "#58a6ff"],
+      ["GD", "GDELT", "Noticias", "API", "ACTIVO", 1356, "#3ddc84"],
+      ["GN", "Google News RSS", "Noticias", "RSS", "PARCIAL", 99, "#58a6ff"],
+      ["BS", "Bluesky", "Red social", "API", "PARCIAL", 99, "#e8c547"],
+      ["BB", "BBC RSS", "Noticias", "RSS", "ACTIVO", 31, "#3ddc84"],
+      ["AJ", "Al Jazeera RSS", "Noticias regionales", "RSS", "ACTIVO", 21, "#ff4a4a"]
+    ];
+
+    // Fuente: serie temporal simulada para explicar dinámica 2025-2026.
+    const timelineScore = {
+      labels: ["2016", "2018", "2020", "2022", "2024", "2025-03", "2025-07", "2025-12", "2026-03", "2026-05"],
+      values: [2.1, 3.4, 3.8, 4.2, 5.6, 6.1, 6.8, 7.2, 7.8, 8.4]
+    };
+
+    // Fuente: OpenSky simulado para movilidad aérea.
+    const mobilitySeries = {
+      labels: ["2025-03", "2025-06", "2025-09", "2025-12", "2026-03", "2026-05"],
+      flights: [610, 582, 548, 520, 493, 482],
+      diversions: [11, 17, 24, 31, 43, 51]
+    };
+
+    // Fuente: línea de tiempo sintética basada en fuentes OSINT del proyecto.
+    const timelineEvents = [
+      ["2016-01-12", "Inicio de registros históricos ACLED", "Se integran eventos armados históricos para establecer una línea base regional.", ["ACLED"], "Baja"],
+      ["2018-05-08", "Aumento de menciones sobre Irán y sanciones", "La cobertura mediática incrementa el tono negativo y referencias diplomáticas.", ["GDELT", "RSS"], "Media"],
+      ["2020-01-03", "Choque de alta visibilidad regional", "Eventos asociados a tensión Irán–EE.UU. elevan señales narrativas de escalada.", ["GDELT", "ACLED"], "Alta"],
+      ["2024-04-13", "Pico de narrativas de ataque e intercepción", "Términos como missile, drone e intercept aparecen con mayor frecuencia.", ["GDELT", "Bluesky"], "Alta"],
+      ["2025-12-18", "Mayor densidad multifuente", "Noticias, aviación y eventos estructurados convergen en zonas de riesgo.", ["OpenSky", "GDELT"], "Media"],
+      ["2026-05-15", "Máximo volumen de eventos del dataset", "El EDA identifica el mayor pico temporal y concentración de alta escalada.", ["EDA", "NASA FIRMS"], "Alta"]
+    ];
+
+    const chartRefs = {};
+    const filterState = {
+      from: "2025-03-01",
+      to: "2026-05-31",
+      country: "Todos",
+      source: "Todas",
+      level: "Todos",
+      timeIndex: 14
+    };
+
+    function switchView(tabName) {
+      document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.toggle("active", panel.id === tabName));
+      document.querySelectorAll(".tab-button").forEach(button => button.classList.toggle("active", button.dataset.tab === tabName));
+    }
+
+    function toggleFinding(button) {
+      const card = button.closest(".finding-card");
+      card.classList.toggle("open");
+    }
+
+    function normalizeSource(source) {
+      if (source.includes("RSS")) return "RSS";
+      return source;
+    }
+
+    function currentEvents() {
+      const from = new Date(filterState.from);
+      const to = new Date(filterState.to);
+      return eventData.filter(event => {
+        const date = new Date(event.date);
+        const countryMatch = filterState.country === "Todos" || event.country === filterState.country;
+        const sourceMatch = filterState.source === "Todas" || normalizeSource(event.sourceGroup) === filterState.source;
+        const levelMatch = filterState.level === "Todos" || (filterState.level === "Alta" ? event.target === 1 : event.target === 0);
+        return date >= from && date <= to && countryMatch && sourceMatch && levelMatch;
+      });
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat("es-CO").format(value);
+    }
+
+    function filteredScale(events) {
+      return Math.max(0.04, events.length / eventData.length);
+    }
+
+    function updateFiltersFromControls() {
+      filterState.from = document.getElementById("filterFrom").value;
+      filterState.to = document.getElementById("filterTo").value;
+      filterState.country = document.getElementById("filterCountry").value;
+      filterState.source = document.getElementById("filterSource").value;
+      filterState.level = document.getElementById("filterLevel").value;
+      updateDashboardFromFilters();
+    }
+
+    function updateKpis(events) {
+      const scale = filteredScale(events);
+      const estimatedTotal = Math.round(29345 * scale);
+      const highCount = events.filter(event => event.target === 1).length;
+      const highShare = events.length ? highCount / events.length : 0;
+      document.getElementById("kpiTotal").textContent = formatNumber(estimatedTotal);
+      document.getElementById("kpiTotalMeta").textContent = events.length === eventData.length ? "Dataset final" : `${events.length} eventos de muestra filtrados`;
+      document.getElementById("kpiHigh").textContent = formatNumber(Math.round(5551 * scale * (events.length ? highShare / 0.5 : 0)));
+      document.getElementById("kpiHighMeta").textContent = `${Math.round(highShare * 100)}% en muestra filtrada`;
+      document.getElementById("kpiSources").textContent = new Set(events.map(event => event.sourceGroup)).size || 0;
+    }
+
+    function updateEdaCharts(events) {
+      if (!chartRefs.targetChart) return;
+      const high = events.filter(event => event.target === 1).length;
+      const low = Math.max(0, events.length - high);
+      if (events.length === eventData.length) {
+        chartRefs.targetChart.data.datasets[0].data = targetDistribution.map(item => item.value);
+      } else {
+        chartRefs.targetChart.data.datasets[0].data = [low, high];
+      }
+      chartRefs.targetChart.update();
+
+      const scale = filteredScale(events);
+      chartRefs.monthlyChart.data.datasets[0].data = monthlyEvents.total.map(value => Math.max(1, Math.round(value * scale)));
+      chartRefs.monthlyChart.data.datasets[1].data = monthlyEvents.alta_escalada.map(value => Math.max(1, Math.round(value * (events.length ? high / Math.max(1, events.length) : 0.04))));
+      chartRefs.monthlyChart.update();
+      chartRefs.geoRiskChart.data.datasets[0].data = geoRiskData.clase0.map(value => Math.max(0, Math.round(value * scale)));
+      chartRefs.geoRiskChart.data.datasets[1].data = geoRiskData.clase1.map(value => Math.max(0, Math.round(value * scale)));
+      chartRefs.geoRiskChart.update();
+    }
+
+    function updateTimelineCharts(events) {
+      if (!chartRefs.timelineScoreChart || !chartRefs.mobilityChart) return;
+      const scale = filteredScale(events);
+      const highShare = events.length ? events.filter(event => event.target === 1).length / events.length : 0;
+      const timelineLength = chartRefs.timelineScoreChart.data.labels.length || timelineScore.values.length;
+      chartRefs.timelineScoreChart.data.datasets[0].data = timelineScore.values.slice(0, timelineLength).map(value => Math.max(0.4, Math.min(10, value * (0.72 + highShare * 0.56))));
+      chartRefs.timelineScoreChart.update();
+      chartRefs.mobilityChart.data.datasets[0].data = mobilitySeries.flights.map(value => Math.max(1, Math.round(value * (0.8 + scale * 0.3))));
+      chartRefs.mobilityChart.data.datasets[1].data = mobilitySeries.diversions.map(value => Math.max(1, Math.round(value * (0.75 + highShare * 0.7))));
+      chartRefs.mobilityChart.update();
+    }
+
+    function renderEventExplorer(events) {
+      const rows = events.length ? events : [];
+      document.getElementById("eventExplorerRows").innerHTML = rows.map(event => `<tr class="clickable-row" onclick="selectExplorerEvent('${event.id}')"><td>${event.date}</td><td>${event.source}</td><td>${event.country}</td><td>${event.target}</td><td>${event.riskZone}</td></tr>`).join("") || `<tr><td colspan="5">Sin eventos para el filtro actual</td></tr>`;
+      const detail = document.getElementById("eventExplorerDetail");
+      detail.classList.remove("active");
+      detail.innerHTML = "";
+    }
+
+    function selectExplorerEvent(id) {
+      const event = eventData.find(item => item.id === id);
+      if (!event) return;
+      const detail = document.getElementById("eventExplorerDetail");
+      detail.classList.add("active");
+      detail.innerHTML = `<strong>${event.label} · ${event.date}</strong><p>Texto original: ${event.text}</p><p>Texto traducido: ${event.translated}</p><p>Sentiment Score: ${event.sentiment}</p><p>Keyword Score: ${event.keyword}</p><p>Cross Source Density: ${event.density}</p>`;
+    }
+
+    function updateDashboardFromFilters() {
+      const events = currentEvents();
+      updateKpis(events);
+      updateEdaCharts(events);
+      updateTimelineCharts(events);
+      renderEventExplorer(events);
+      const selected = document.getElementById("selectedMapEvent");
+      selected.classList.remove("selected-high", "selected-low");
+      selected.innerHTML = `<span class="meta">Evento seleccionado</span><strong>Haz click sobre un punto del mapa</strong><p>El panel mostrará ubicación, fecha, fuente, clase, zona de riesgo y variables OSINT asociadas.</p>`;
+      renderMap(events);
+    }
+
+    function updateClock() {
+      document.getElementById("utcClock").textContent = `UTC ${new Date().toISOString().slice(11, 19)}`;
+    }
+
+    function legend(id, items) {
+      document.getElementById(id).innerHTML = items.map(item => `<div class="legend-item"><span class="swatch" style="background:${item.color}"></span><span>${item.label}</span></div>`).join("");
+    }
+
+    function baseOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#0d1117",
+            borderColor: "#1e2a3a",
+            borderWidth: 1,
+            titleColor: "#d9e2ec",
+            bodyColor: "#d9e2ec"
+          }
+        },
+        scales: {
+          x: { ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } },
+          y: { ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } }
+        }
+      };
+    }
+
+    const thresholdPlugin = {
+      id: "thresholdPlugin",
+      afterDatasetsDraw(chart, args, opts) {
+        if (!opts || typeof opts.value !== "number") return;
+        const { ctx, chartArea, scales } = chart;
+        const y = scales.y.getPixelForValue(opts.value);
+        ctx.save();
+        ctx.strokeStyle = opts.color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.fillStyle = opts.color;
+        ctx.font = "11px JetBrains Mono";
+        ctx.fillText(`Umbral ${opts.value}`, chartArea.left + 8, y - 6);
+        ctx.restore();
+      }
+    };
+
+    Chart.register(thresholdPlugin);
+
+    function renderStaticTables() {
+      const statusClass = { ACTIVO: "badge-active", COMPLETO: "badge-complete", PARCIAL: "badge-partial", PENDIENTE: "badge-pending" };
+      document.getElementById("statusTable").innerHTML = statusRows.map(row => `<tr><td>${row[0]}</td><td><span class="badge ${statusClass[row[1]]}">${row[1]}</span></td><td>${row[2]}</td></tr>`).join("");
+      document.getElementById("missingTable").innerHTML = missingnessRows.map(row => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("");
+      renderModelTable("Random Forest");
+    }
+
+    function renderModelTable(selected) {
+      const normalized = selected === "Baseline" ? "Baseline Classifier" : selected;
+      document.getElementById("modelTable").innerHTML = modelRows.map(row => `<tr class="${row[0] === normalized ? "highlight" : ""}"><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td><td>${row[6]}</td></tr>`).join("");
+    }
+
+    function renderConfusionMatrix(matrix = modelDetails["Random Forest"].matrix) {
+      const labels = ["Clase 0", "Clase 1"];
+      const cells = [`<div class="matrix-cell matrix-head">Real</div>`, `<div class="matrix-cell matrix-head">Pred 0</div>`, `<div class="matrix-cell matrix-head">Pred 1</div>`];
+      matrix.forEach((row, i) => {
+        cells.push(`<div class="matrix-cell matrix-head">${labels[i]}</div>`);
+        row.forEach((value, j) => cells.push(`<div class="matrix-cell ${i === j ? "matrix-good" : "matrix-bad"}">${value}</div>`));
+      });
+      document.getElementById("confusionMatrix").style.gridTemplateColumns = "84px repeat(2, minmax(70px, 1fr))";
+      document.getElementById("confusionMatrix").innerHTML = cells.join("");
+    }
+
+    function showVariableContext(name, importance) {
+      const info = featureDescriptions[name] || ["Variable del modelo", "Se generó durante preprocesamiento o codificación categórica.", "Aporta señal relativa según el modelo seleccionado."];
+      document.getElementById("variableContext").innerHTML = `<span class="meta">Variable seleccionada</span><strong>${name}</strong><p>Descripción: ${info[0]}</p><p>Por qué fue creada: ${info[1]}</p><p>Importancia en el modelo: ${Number(importance).toFixed(4)}</p><p>Interpretación analítica: ${info[2]}</p>`;
+    }
+
+    function updateSelectedModel() {
+      const selected = document.getElementById("modelSelector").value;
+      const details = modelDetails[selected];
+      renderModelTable(selected);
+      document.getElementById("selectedModelMetrics").innerHTML = Object.entries(details.metrics).map(([key, value]) => `<div class="metric-chip"><span class="meta">${key}</span><strong>${Number(value).toFixed(4).replace(".", ",")}</strong></div>`).join("");
+      document.getElementById("matrixModelName").textContent = selected;
+      document.getElementById("recallModelName").textContent = selected;
+      renderConfusionMatrix(details.matrix);
+      if (chartRefs.recallChart) {
+        chartRefs.recallChart.data.labels = details.recall.map(item => item.label);
+        chartRefs.recallChart.data.datasets[0].data = details.recall.map(item => item.value);
+        chartRefs.recallChart.data.datasets[0].backgroundColor = details.recall.map(item => item.color);
+        chartRefs.recallChart.update();
+      }
+      if (chartRefs.featureChart) {
+        chartRefs.featureChart.data.labels = details.features.map(item => item[0]);
+        chartRefs.featureChart.data.datasets[0].data = details.features.map(item => item[1]);
+        chartRefs.featureChart.update();
+        document.getElementById("variableContext").innerHTML = `<span class="meta">Variable seleccionada</span><strong>Haz click sobre una barra</strong><p>Se mostrará descripción, razón de creación, importancia e interpretación analítica.</p>`;
+      }
+    }
+
+    function updateSimulatorLabels() {
+      document.getElementById("simKeywordValue").textContent = Number(document.getElementById("simKeyword").value).toFixed(1).replace(".", ",");
+      document.getElementById("simDensityValue").textContent = document.getElementById("simDensity").value;
+      document.getElementById("simReliabilityValue").textContent = Number(document.getElementById("simReliability").value).toFixed(2).replace(".", ",");
+    }
+
+    function predictEscalation() {
+      const keyword = Number(document.getElementById("simKeyword").value);
+      const density = Number(document.getElementById("simDensity").value);
+      const reliability = Number(document.getElementById("simReliability").value);
+      const risk = document.getElementById("simRisk").value;
+      const riskBoost = risk === "High" ? 0.34 : risk === "Medium" ? 0.16 : -0.08;
+      const raw = 0.18 + keyword * 0.18 + density * 0.035 + reliability * 0.12 + riskBoost;
+      const probability = Math.max(0.03, Math.min(0.98, raw));
+      document.getElementById("simResultBar").style.width = `${Math.round(probability * 100)}%`;
+      document.getElementById("simResultText").textContent = `${Math.round(probability * 100)}%`;
+    }
+
+    function applyTimelineSlider() {
+      const index = Number(document.getElementById("timeSlider").value);
+      filterState.timeIndex = index;
+      const month = monthlyEvents.labels[index];
+      document.getElementById("timeSliderLabel").textContent = `Hasta ${month}`;
+      document.getElementById("filterTo").value = `${month}-28`;
+      filterState.to = `${month}-28`;
+      updateDashboardFromFilters();
+      if (chartRefs.timelineScoreChart) {
+        chartRefs.timelineScoreChart.data.labels = timelineScore.labels.slice(0, Math.min(timelineScore.labels.length, Math.ceil((index + 1) / 1.5)));
+        chartRefs.timelineScoreChart.data.datasets[0].data = timelineScore.values.slice(0, chartRefs.timelineScoreChart.data.labels.length);
+        chartRefs.timelineScoreChart.update();
+      }
+    }
+
+    function renderBarsAndCards() {
+      document.getElementById("predictionBars").innerHTML = predictionData.map(item => `<div class="bar-row"><span>${item.label}</span><div class="track"><div class="fill" style="width:${Math.round(item.value * 100)}%; background:${item.color}"></div></div><span>${Math.round(item.value * 100)}%</span></div>`).join("");
+      document.getElementById("tokenCloud").innerHTML = tokenData.map(item => `<span class="token" style="font-size:${item[1]}px; color:${item[2]}">${item[0]}</span>`).join("");
+      document.getElementById("sourceGrid").innerHTML = sources.map(source => `<article class="source-card"><div class="source-icon">${source[0]}</div><div class="source-copy"><strong>${source[1]}</strong><span class="meta">${source[2]}</span><span class="meta">${source[3]}</span></div><span class="badge ${source[4] === "ACTIVO" ? "badge-active" : "badge-partial"}">${source[4]}</span></article>`).join("");
+      document.getElementById("countryRiskList").innerHTML = countryRiskData.map(country => `<div class="mix-row"><span class="swatch" style="background:${country.color}"></span><span>${country.name}</span><strong>${country.level} · ${country.score.toFixed(1)}</strong></div>`).join("");
+      const classMap = { Baja: "badge-low", Media: "badge-medium", Alta: "badge-high" };
+      document.getElementById("timelineEvents").innerHTML = timelineEvents.map(event => `<article class="event-card"><div class="blue">${event[0]}</div><div class="event-copy"><strong>${event[1]}</strong><p>${event[2]}</p></div><div class="tag-row">${event[3].map(tag => `<span class="tag">${tag}</span>`).join("")}<span class="badge ${classMap[event[4]]}">${event[4]}</span></div></article>`).join("");
+    }
+
+    async function renderMap(filteredEvents = currentEvents()) {
+      const svg = d3.select("#geoMap");
+      const node = svg.node();
+      const width = Math.max(760, node.clientWidth || 760);
+      const height = Math.max(560, node.clientHeight || 560);
+      svg.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+      let rotation = [-45, -27];
+      let mapScale = Math.min(width, height) * 0.48;
+      const projection = d3.geoOrthographic().rotate(rotation).scale(mapScale).translate([width / 2, height / 2]).clipAngle(90);
+      const path = d3.geoPath(projection);
+      let land = null;
+      let borders = null;
+      let countries = null;
+      try {
+        const topology = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+        land = topojson.feature(topology, topology.objects.land);
+        countries = topojson.feature(topology, topology.objects.countries).features;
+        borders = topojson.mesh(topology, topology.objects.countries, (a, b) => a !== b);
+      } catch (error) {
+        land = null;
+        borders = null;
+        countries = null;
+      }
+      const color = { alta: "#ff4a4a", media: "#e8c547", baja: "#3ddc84" };
+
+      function updateSelectedEvent(event) {
+        const selected = document.getElementById("selectedMapEvent");
+        const badgeClass = event.target === 1 ? "badge-high" : "badge-low";
+        selected.classList.remove("selected-high", "selected-low");
+        selected.classList.add(event.target === 1 ? "selected-high" : "selected-low");
+        selected.innerHTML = `<span class="meta">Evento seleccionado</span><strong>${event.label}</strong><p>Ubicación: ${event.country} (${event.lat.toFixed(2)}, ${event.lon.toFixed(2)})</p><p>Fecha: ${event.date}</p><p>Fuente: ${event.source}</p><p>Clase: <span class="badge ${badgeClass}">${event.target === 1 ? "Alta" : "Baja"}</span></p><p>Geo Risk Zone: ${event.riskZone}</p><p>Cross Source Density: ${event.density}</p><p>Escalation Keyword Score: ${event.keyword}</p>`;
+      }
+
+      function visiblePoint(event) {
+        const point = projection([event.lon, event.lat]);
+        if (!point) return null;
+        const distance = d3.geoDistance([-rotation[0], -rotation[1]], [event.lon, event.lat]);
+        return distance > Math.PI / 2 ? null : point;
+      }
+
+      function draw() {
+        svg.selectAll("*").remove();
+        svg.append("circle").attr("cx", width / 2).attr("cy", height / 2).attr("r", projection.scale()).attr("fill", "#0d1117").attr("stroke", "#1e2a3a").attr("stroke-width", 1);
+        if (countries && borders) {
+          svg.selectAll(".country-shape").data(countries).enter().append("path").attr("class", "country-shape").attr("d", path).attr("fill", d => {
+            const id = String(d.id).padStart(3, "0");
+            return countryRiskById[id] ? countryRiskById[id].color : "#1a2332";
+          }).attr("fill-opacity", d => {
+            const id = String(d.id).padStart(3, "0");
+            return countryRiskById[id] ? 0.82 : 1;
+          }).attr("stroke", "#2a3a52").attr("stroke-width", 0.5);
+          svg.append("path").datum(borders).attr("d", path).attr("fill", "none").attr("stroke", "#2a3a52").attr("stroke-width", 0.5);
+          const labeledCountries = countries.map(country => {
+            const id = String(country.id).padStart(3, "0");
+            const risk = countryRiskById[id];
+            if (!risk) return null;
+            const centroid = d3.geoCentroid(country);
+            const point = projection(centroid);
+            const distance = d3.geoDistance([-rotation[0], -rotation[1]], centroid);
+            return point && distance <= Math.PI / 2 ? { ...risk, point } : null;
+          }).filter(Boolean);
+          svg.selectAll(".country-risk-label").data(labeledCountries).enter().append("text").attr("class", "country-risk-label").attr("x", d => d.point[0] + 7).attr("y", d => d.point[1] - 7).attr("fill", "#d9e2ec").attr("font-size", 11).attr("font-family", "JetBrains Mono").attr("paint-order", "stroke").attr("stroke", "#090c10").attr("stroke-width", 3).attr("stroke-linejoin", "round").text(d => d.name);
+        } else if (land) {
+          svg.append("path").datum(land).attr("d", path).attr("fill", "#1a2332").attr("stroke", "#2a3a52").attr("stroke-width", 0.5);
+        } else {
+          svg.append("text").attr("x", 22).attr("y", 30).attr("fill", "#e8c547").attr("font-size", 11).attr("font-family", "JetBrains Mono").text("No se pudo cargar la topología. Se muestran eventos sobre globo base.");
+        }
+        const visibleEvents = filteredEvents.map(event => ({ ...event, point: visiblePoint(event) })).filter(event => event.point);
+        svg.selectAll(".event-point").data(visibleEvents).enter().append("circle").attr("class", "event-point").attr("cx", d => d.point[0]).attr("cy", d => d.point[1]).attr("r", d => Math.max(4, Math.sqrt(d.value))).attr("fill", d => color[d.clase]).attr("fill-opacity", 0.72).attr("stroke", "#090c10").attr("stroke-width", 1).attr("tabindex", 0).on("click focus", (event, d) => updateSelectedEvent(d));
+        svg.selectAll(".event-label").data(visibleEvents).enter().append("text").attr("x", d => d.point[0] + 8).attr("y", d => d.point[1] + 4).attr("fill", "#d9e2ec").attr("font-size", 11).attr("font-family", "JetBrains Mono").attr("paint-order", "stroke").attr("stroke", "#090c10").attr("stroke-width", 3).attr("stroke-linejoin", "round").text(d => d.label);
+        svg.append("text").attr("x", 22).attr("y", height - 24).attr("fill", "#7d8b99").attr("font-size", 11).attr("font-family", "JetBrains Mono").text("Interactivo: arrastra para rotar, rueda para zoom. Colores: rojo alta, ámbar media, verde baja.");
+      }
+
+      svg.call(d3.drag().on("drag", event => {
+        rotation = [rotation[0] + event.dx * 0.35, Math.max(-80, Math.min(80, rotation[1] - event.dy * 0.25))];
+        projection.rotate(rotation);
+        draw();
+      }));
+
+      svg.on("wheel", event => {
+        event.preventDefault();
+        const direction = event.deltaY > 0 ? 0.9 : 1.1;
+        mapScale = Math.max(Math.min(width, height) * 0.28, Math.min(Math.min(width, height) * 1.25, mapScale * direction));
+        projection.scale(mapScale);
+        draw();
+      });
+
+      draw();
+    }
+
+    function initCharts() {
+      chartRefs.targetChart = new Chart(document.getElementById("targetChart"), {
+        type: "doughnut",
+        data: { labels: targetDistribution.map(d => d.label), datasets: [{ data: targetDistribution.map(d => d.value), backgroundColor: targetDistribution.map(d => d.color), borderColor: "#090c10", borderWidth: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: baseOptions().plugins.tooltip }, cutout: "58%" }
+      });
+      legend("targetLegend", targetDistribution);
+
+      chartRefs.monthlyChart = new Chart(document.getElementById("monthlyChart"), {
+        type: "line",
+        data: { labels: monthlyEvents.labels, datasets: [{ label: "Total", data: monthlyEvents.total, borderColor: "#58a6ff", backgroundColor: "#58a6ff", tension: 0.25, pointRadius: 2 }, { label: "Alta escalada", data: monthlyEvents.alta_escalada, borderColor: "#ff4a4a", backgroundColor: "#ff4a4a", tension: 0.25, pointRadius: 2 }] },
+        options: { ...baseOptions(), scales: { ...baseOptions().scales, y: { type: "logarithmic", ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } } } }
+      });
+      legend("monthlyLegend", [{ label: "Total", color: "#58a6ff" }, { label: "Alta escalada", color: "#ff4a4a" }]);
+
+      chartRefs.classMeanChart = new Chart(document.getElementById("classMeanChart"), {
+        type: "bar",
+        data: { labels: classMeanData.labels, datasets: [{ label: "Clase 0", data: classMeanData.clase0, backgroundColor: "#3ddc84" }, { label: "Clase 1", data: classMeanData.clase1, backgroundColor: "#ff4a4a" }] },
+        options: { ...baseOptions(), indexAxis: "y" }
+      });
+      legend("classMeanLegend", [{ label: "Clase 0", color: "#3ddc84" }, { label: "Clase 1", color: "#ff4a4a" }]);
+
+      chartRefs.correlationChart = new Chart(document.getElementById("correlationChart"), {
+        type: "bar",
+        data: { labels: correlationData.labels, datasets: [{ label: "Correlación", data: correlationData.values, backgroundColor: correlationData.values.map(v => v >= 0 ? "#3ddc84" : "#ff4a4a") }] },
+        options: { ...baseOptions(), indexAxis: "y" }
+      });
+      legend("correlationLegend", [{ label: "Correlación positiva", color: "#3ddc84" }, { label: "Correlación negativa", color: "#ff4a4a" }]);
+
+      chartRefs.geoRiskChart = new Chart(document.getElementById("geoRiskChart"), {
+        type: "bar",
+        data: { labels: geoRiskData.labels, datasets: [{ label: "Clase 0", data: geoRiskData.clase0, backgroundColor: "#3ddc84" }, { label: "Clase 1", data: geoRiskData.clase1, backgroundColor: "#ff4a4a" }] },
+        options: baseOptions()
+      });
+      legend("geoRiskLegend", [{ label: "Clase 0", color: "#3ddc84" }, { label: "Clase 1", color: "#ff4a4a" }]);
+
+      chartRefs.recallChart = new Chart(document.getElementById("recallChart"), {
+        type: "bar",
+        data: { labels: recallData.map(d => d.label), datasets: [{ label: "Recall", data: recallData.map(d => d.value), backgroundColor: recallData.map(d => d.color) }] },
+        options: { ...baseOptions(), scales: { ...baseOptions().scales, y: { min: 0, max: 1, ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } } } }
+      });
+      legend("recallLegend", recallData);
+
+      chartRefs.featureChart = new Chart(document.getElementById("featureChart"), {
+        type: "bar",
+        data: { labels: featureImportance.map(d => d[0]), datasets: [{ label: "Importancia", data: featureImportance.map(d => d[1]), backgroundColor: "#e8c547" }] },
+        options: { ...baseOptions(), indexAxis: "y", onClick: (event, elements) => {
+          if (!elements.length) return;
+          const index = elements[0].index;
+          const featureName = chartRefs.featureChart.data.labels[index];
+          showVariableContext(featureName, chartRefs.featureChart.data.datasets[0].data[index]);
+        } }
+      });
+      legend("featureLegend", [{ label: "Importancia Random Forest", color: "#e8c547" }]);
+
+      chartRefs.sourceVolumeChart = new Chart(document.getElementById("sourceVolumeChart"), {
+        type: "bar",
+        data: { labels: sources.map(s => s[1]), datasets: [{ label: "Registros", data: sources.map(s => s[5]), backgroundColor: sources.map(s => s[6]) }] },
+        options: { ...baseOptions(), scales: { ...baseOptions().scales, y: { type: "logarithmic", ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } } } }
+      });
+      legend("sourceVolumeLegend", sources.map(s => ({ label: s[1], color: s[6] })));
+
+      chartRefs.timelineScoreChart = new Chart(document.getElementById("timelineScoreChart"), {
+        type: "line",
+        data: { labels: timelineScore.labels, datasets: [{ label: "Score de escalada", data: timelineScore.values, borderColor: "#ff4a4a", backgroundColor: "#ff4a4a", tension: 0.25, pointRadius: 3 }] },
+        options: { ...baseOptions(), scales: { ...baseOptions().scales, y: { min: 0, max: 10, ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } } }, plugins: { ...baseOptions().plugins, thresholdPlugin: { value: 7, color: "#e8c547" } } }
+      });
+      legend("timelineScoreLegend", [{ label: "Score de escalada", color: "#ff4a4a" }, { label: "Umbral 7", color: "#e8c547" }]);
+
+      chartRefs.mobilityChart = new Chart(document.getElementById("mobilityChart"), {
+        type: "line",
+        data: { labels: mobilitySeries.labels, datasets: [{ label: "Vuelos activos", data: mobilitySeries.flights, borderColor: "#39d5c0", backgroundColor: "#39d5c0", yAxisID: "y", tension: 0.25, pointRadius: 2 }, { label: "Desvíos de ruta", data: mobilitySeries.diversions, borderColor: "#e8c547", backgroundColor: "#e8c547", yAxisID: "y1", tension: 0.25, pointRadius: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: baseOptions().plugins, scales: { x: baseOptions().scales.x, y: { type: "linear", position: "left", ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { color: chartGrid } }, y1: { type: "linear", position: "right", ticks: { color: chartMuted, font: { family: "JetBrains Mono", size: 11 } }, grid: { drawOnChartArea: false } } } }
+      });
+      legend("mobilityLegend", [{ label: "Vuelos activos", color: "#39d5c0" }, { label: "Desvíos de ruta", color: "#e8c547" }]);
+    }
+
+    function init() {
+      updateClock();
+      setInterval(updateClock, 1000);
+      renderStaticTables();
+      renderBarsAndCards();
+      initCharts();
+      updateSelectedModel();
+      updateDashboardFromFilters();
+      updateSimulatorLabels();
+      predictEscalation();
+      ["filterFrom", "filterTo", "filterCountry", "filterSource", "filterLevel"].forEach(id => document.getElementById(id).addEventListener("change", updateFiltersFromControls));
+      document.getElementById("modelSelector").addEventListener("change", updateSelectedModel);
+      ["simKeyword", "simDensity", "simReliability", "simRisk"].forEach(id => document.getElementById(id).addEventListener("input", () => {
+        updateSimulatorLabels();
+        predictEscalation();
+      }));
+      document.getElementById("predictButton").addEventListener("click", predictEscalation);
+      document.getElementById("timeSlider").addEventListener("input", applyTimelineSlider);
+    }
+
+    window.addEventListener("resize", () => {
+      clearTimeout(window.mapTimer);
+      window.mapTimer = setTimeout(() => renderMap(currentEvents()), 180);
+    });
+
+    init();
+  </script>
+</body>
+</html>
